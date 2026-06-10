@@ -1,17 +1,5 @@
 .env
 food.db
-
 venv/
 __pycache__/
-
 *.pyc
-*.pyo
-*.pyd
-
-.vscode/
-.idea/
-
-*.png
-*.jpg
-
-backup/

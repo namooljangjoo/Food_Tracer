@@ -1,8 +1,10 @@
 import os
+import uuid
+
+from database import FoodLog, SessionLocal
+from barcode_service import read_barcode, get_product_by_barcode
 from datetime import date, timedelta
-
 from dotenv import load_dotenv
-
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -13,7 +15,6 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
-
 from meal_calculator import calculate_and_save_meal
 from daily_summary import (
     get_today_summary,
@@ -33,6 +34,14 @@ from chart_service import create_weekly_chart, create_weight_chart
 from weight_service import save_weight, get_weight_history
 from analysis_service import analyze_nutrition
 from analysis_formatter import format_analysis
+from barcode_service import read_barcode
+from menu_service import (
+    main_keyboard,
+    food_keyboard,
+    reports_keyboard,
+    settings_keyboard,
+    more_keyboard,
+)
 
 load_dotenv()
 
@@ -40,28 +49,6 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 ASK_LANGUAGE, ASK_CALORIES, ASK_PROTEIN = range(3)
 
-
-def main_keyboard(language="fa"):
-    if language == "en":
-        keyboard = [
-            ["📅 History", "📊 Today"],
-            ["📋 Today foods", "↩️ Undo last meal"],
-            ["🧹 Clear today"],
-            ["⚖️ Log weight", "⚖️ Weight report"],
-            ["📈 Weekly Report", "🧠 Nutrition Analysis"],
-            ["🎯 Change goal", "🌐 Change language"],
-        ]
-    else:
-        keyboard = [
-            ["📅 تاریخچه", "📊 امروز"],
-            ["📋 غذاهای امروز", "↩️ حذف آخرین وعده"],
-            ["🧹 پاک کردن امروز"],
-            ["⚖️ ثبت وزن", "⚖️ گزارش وزن"],
-            ["📈 گزارش هفتگی", "🧠 تحلیل تغذیه"],
-            ["🎯 تغییر هدف", "🌐 تغییر زبان"],
-        ]
-
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
 def language_keyboard():
@@ -599,11 +586,308 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = format_history(history_data, language)
     await query.edit_message_text(text)
 
+async def handle_barcode_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    language = get_language(user_id) or "fa"
+
+    photo_path = None
+
+    try:
+        photo = update.message.photo[-1]
+        telegram_file = await photo.get_file()
+
+        photo_path = f"/tmp/barcode_{user_id}_{uuid.uuid4()}.jpg"
+
+        await telegram_file.download_to_drive(photo_path)
+
+        barcode = read_barcode(photo_path)
+
+        if not barcode:
+            msg = (
+                "I couldn't detect a barcode. Please send a clearer photo."
+                if language == "en"
+                else "نتونستم بارکد رو تشخیص بدم. لطفاً عکس واضح‌تری بفرست."
+            )
+            await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+            return
+
+        product = get_product_by_barcode(barcode)
+
+        if not product:
+            msg = (
+                f"Barcode detected: {barcode}\n\nProduct not found."
+                if language == "en"
+                else f"بارکد تشخیص داده شد: {barcode}\n\nمحصول پیدا نشد."
+            )
+            await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+            return
+
+        context.user_data["pending_barcode_product"] = product
+        context.user_data["awaiting_barcode_amount"] = True
+
+        if language == "en":
+            text = (
+                "📦 Product found:\n\n"
+                f"Name: {product['name']}\n"
+                f"Brand: {product['brand']}\n"
+                f"Barcode: {product['barcode']}\n\n"
+                "Per 100g:\n"
+                f"🔥 Calories: {product['calories_per_100g']}\n"
+                f"💪 Protein: {product['protein_per_100g']}g\n\n"
+                "How many grams did you eat?\n"
+                "Example: 50"
+            )
+        else:
+            text = (
+                "📦 محصول پیدا شد:\n\n"
+                f"نام: {product['name']}\n"
+                f"برند: {product['brand']}\n"
+                f"بارکد: {product['barcode']}\n\n"
+                "در هر ۱۰۰ گرم:\n"
+                f"🔥 کالری: {product['calories_per_100g']}\n"
+                f"💪 پروتئین: {product['protein_per_100g']} گرم\n\n"
+                "چند گرم مصرف کردی؟\n"
+                "مثال: 50"
+            )
+
+        await update.message.reply_text(text, reply_markup=main_keyboard(language))
+
+    except Exception as e:
+        print("BARCODE ERROR:", repr(e))
+
+        msg = (
+            "Something went wrong while scanning the barcode."
+            if language == "en"
+            else "مشکلی موقع اسکن بارکد پیش اومد."
+        )
+
+        await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+
+    finally:
+        if photo_path and os.path.exists(photo_path):
+            os.remove(photo_path)
+
+
+async def save_pending_barcode_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    language = get_language(user_id) or "fa"
+    text = update.message.text.strip()
+
+    try:
+        grams = float(text.replace(",", "."))
+
+        if grams <= 0 or grams > 5000:
+            raise ValueError()
+
+        product = context.user_data.get("pending_barcode_product")
+
+        if not product:
+            context.user_data["awaiting_barcode_amount"] = False
+            msg = (
+                "No pending barcode product found. Please scan again."
+                if language == "en"
+                else "محصولی برای ثبت پیدا نشد. لطفاً دوباره اسکن کن."
+            )
+            await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+            return
+
+        calories = round(product["calories_per_100g"] * grams / 100, 1)
+        protein = round(product["protein_per_100g"] * grams / 100, 1)
+
+        db = SessionLocal()
+
+        food_log = FoodLog(
+            user_id=user_id,
+            meal_id=str(uuid.uuid4()),
+            food_name=product["name"],
+            calories=calories,
+            protein=protein,
+        )
+
+        db.add(food_log)
+        db.commit()
+        db.close()
+
+        context.user_data["awaiting_barcode_amount"] = False
+        context.user_data["pending_barcode_product"] = None
+
+        today_summary = get_today_summary(user_id)
+
+        if language == "en":
+            msg = (
+                "✅ Product logged:\n\n"
+                f"📦 {product['name']}\n"
+                f"⚖️ Amount: {grams}g\n"
+                f"🔥 Calories: {calories}\n"
+                f"💪 Protein: {protein}g\n\n"
+                "📊 Today total:\n"
+                f"🔥 Calories: {today_summary['total_calories']}\n"
+                f"💪 Protein: {today_summary['total_protein']}g"
+            )
+        else:
+            msg = (
+                "✅ محصول ثبت شد:\n\n"
+                f"📦 {product['name']}\n"
+                f"⚖️ مقدار: {grams} گرم\n"
+                f"🔥 کالری: {calories}\n"
+                f"💪 پروتئین: {protein} گرم\n\n"
+                "📊 مجموع امروز:\n"
+                f"🔥 کالری: {today_summary['total_calories']}\n"
+                f"💪 پروتئین: {today_summary['total_protein']} گرم"
+            )
+
+        await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+
+    except Exception:
+        msg = (
+            "Please enter only the amount in grams.\nExample: 50"
+            if language == "en"
+            else "فقط مقدار را به گرم وارد کن.\nمثال: 50"
+        )
+
+        await update.message.reply_text(msg)
 
 async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
+    print(f"BUTTON CLICKED: {text}", flush=True)
     language = get_language(user_id) or "fa"
+
+    if text in ["⬅️ بازگشت", "⬅️ Back"]:
+        cancel_active_requests(context)
+        await update.message.reply_text(
+            "🏠 منوی اصلی" if language == "fa" else "🏠 Main menu",
+            reply_markup=main_keyboard(language),
+        )
+        return
+
+    if text in ["🍽 غذا", "🍽 Food"]:
+        await update.message.reply_text(
+            "🍽 منوی غذا" if language == "fa" else "🍽 Food menu",
+            reply_markup=food_keyboard(language),
+        )
+        return
+
+    if text in ["📊 گزارش‌ها", "📊 Reports"]:
+        await update.message.reply_text(
+            "📊 گزارش‌ها" if language == "fa" else "📊 Reports",
+            reply_markup=reports_keyboard(language),
+        )
+        return
+
+    if text in ["⚙️ تنظیمات", "⚙️ Settings"]:
+        await update.message.reply_text(
+            "⚙️ تنظیمات" if language == "fa" else "⚙️ Settings",
+            reply_markup=settings_keyboard(language),
+        )
+        return
+
+    if text in ["ℹ️ بیشتر", "ℹ️ More"]:
+        await update.message.reply_text(
+            "ℹ️ بیشتر" if language == "fa" else "ℹ️ More",
+            reply_markup=more_keyboard(language),
+        )
+        return
+
+    if text in ["📅 امروز", "📅 Today", "📊 امروز", "📊 Today"]:
+        await today(update, context)
+        return
+
+    if text in ["📈 گزارش هفتگی", "📈 Weekly Report"]:
+        await weekly_report(update, context)
+        return
+
+    if text in ["🧠 تحلیل تغذیه", "🧠 Nutrition Analysis"]:
+        await nutrition_analysis(update, context)
+        return
+
+    if text in ["⚖️ روند وزن", "⚖️ Weight Trend", "⚖️ گزارش وزن", "⚖️ Weight Report", "⚖️ Weight report"]:
+        await weight_report(update, context)
+        return
+
+    if text in ["📜 تاریخچه", "📜 History", "📅 تاریخچه", "📅 History"]:
+        await update.message.reply_text(
+            "📅 بازه تاریخچه را انتخاب کن:" if language == "fa"
+            else "📅 Choose history range:",
+            reply_markup=build_history_menu(language),
+        )
+        return
+
+    if text in ["ℹ️ درباره", "ℹ️ About"]:
+        await update.message.reply_text(
+            "FoodTracer v1.0",
+            reply_markup=more_keyboard(language),
+        )
+        return
+
+    if text in ["🎯 اهداف", "🎯 Goals"]:
+        await update.message.reply_text(
+            "برای تغییر هدف اینطوری بنویس:\n/goal 1700 200"
+            if language == "fa"
+            else "Use this format:\n/goal 1700 200",
+            reply_markup=settings_keyboard(language),
+        )
+        return
+
+    if text in ["🌍 زبان", "🌍 Language", "🌐 تغییر زبان", "🌐 Change language"]:
+        context.user_data["changing_language_only"] = True
+        await update.message.reply_text(
+            "Please choose your language:\n\nلطفاً زبان خود را انتخاب کنید:",
+            reply_markup=language_keyboard(),
+        )
+        return
+
+    if text in ["⚖️ ثبت وزن", "⚖️ Log Weight", "⚖️ Log weight"]:
+        context.user_data["awaiting_weight"] = True
+        await update.message.reply_text(
+            "Enter your current weight:\n\nExample:\n82.5"
+            if language == "en"
+            else "وزن فعلی‌ات را وارد کن:\n\nمثال:\n82.5"
+        )
+        return
+
+    if text in ["➕ ثبت غذا", "➕ Log Food"]:
+        await update.message.reply_text(
+            "غذایت را بنویس."
+            if language == "fa"
+            else "Send your meal.",
+            reply_markup=food_keyboard(language),
+        )
+        return
+
+    if text in ["📦 اسکن بارکد", "📦 Scan barcode", "📦 Scan Barcode"]:
+        await update.message.reply_text(
+            "Please send a clear photo of the barcode."
+            if language == "en"
+            else "لطفاً یک عکس واضح از بارکد محصول بفرست.",
+            reply_markup=food_keyboard(language),
+        )
+        return
+
+    if text in ["↩️ حذف آخرین غذا", "↩️ Undo Last Meal", "↩️ حذف آخرین وعده", "↩️ Undo last meal"]:
+        await undo(update, context)
+        return
+
+    if text in ["📋 غذاهای امروز", "📋 Today foods"]:
+        await today_foods(update, context)
+        return
+
+    if text in ["🧹 پاک کردن امروز", "🧹 Clear today", "🧹 Clear Today"]:
+        await clear_today_request(update, context)
+        return
+
+    if text in ["فارسی", "English"]:
+        new_language = "fa" if text == "فارسی" else "en"
+        save_language(user_id, new_language)
+        await update.message.reply_text(
+            "English selected ✅" if new_language == "en" else "زبان فارسی انتخاب شد ✅",
+            reply_markup=main_keyboard(new_language),
+        )
+        return
+
+    if context.user_data.get("awaiting_barcode_amount"):
+        await save_pending_barcode_amount(update, context)
+        return
 
     if context.user_data.get("awaiting_clear_today_confirm"):
         if text in ["بله", "YES", "Yes", "yes"]:
@@ -618,8 +902,10 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         context.user_data["awaiting_clear_today_confirm"] = False
-        msg = "Clear today cancelled." if language == "en" else "پاک کردن امروز لغو شد."
-        await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+        await update.message.reply_text(
+            "Clear today cancelled." if language == "en" else "پاک کردن امروز لغو شد.",
+            reply_markup=main_keyboard(language),
+        )
         return
 
     if context.user_data.get("awaiting_weight"):
@@ -630,110 +916,58 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             save_weight(user_id, weight)
             context.user_data["awaiting_weight"] = False
-            msg = f"✅ Weight saved: {weight} kg" if language == "en" else f"✅ وزن ثبت شد: {weight} kg"
-            await update.message.reply_text(msg, reply_markup=main_keyboard(language))
+
+            await update.message.reply_text(
+                f"✅ Weight saved: {weight} kg"
+                if language == "en"
+                else f"✅ وزن ثبت شد: {weight} kg",
+                reply_markup=main_keyboard(language),
+            )
             return
 
         except Exception:
-            msg = "Enter only a number.\nExample: 82.5" if language == "en" else "فقط عدد وارد کن.\nمثال: 82.5"
-            await update.message.reply_text(msg)
+            await update.message.reply_text(
+                "Enter only a number.\nExample: 82.5"
+                if language == "en"
+                else "فقط عدد وارد کن.\nمثال: 82.5"
+            )
             return
-
-    if text in ["فارسی", "English"]:
-        new_language = "fa" if text == "فارسی" else "en"
-        save_language(user_id, new_language)
-        msg = "English selected ✅" if new_language == "en" else "زبان فارسی انتخاب شد ✅"
-        await update.message.reply_text(msg, reply_markup=main_keyboard(new_language))
-        return
-
-    if text in ["📊 امروز", "📊 Today"]:
-        await today(update, context)
-        return
-
-    if text in ["📅 تاریخچه", "📅 History"]:
-        await update.message.reply_text(
-            "📅 Choose history range:" if language == "en" else "📅 بازه تاریخچه را انتخاب کن:",
-            reply_markup=build_history_menu(language),
-        )
-        return
-
-    if text in ["📋 غذاهای امروز", "📋 Today foods"]:
-        await today_foods(update, context)
-        return
-
-    if text in ["↩️ حذف آخرین وعده", "↩️ Undo last meal"]:
-        await undo(update, context)
-        return
-
-    if text in ["🧹 پاک کردن امروز", "🧹 Clear today"]:
-        await clear_today_request(update, context)
-        return
-
-    if text in ["📈 گزارش هفتگی", "📈 Weekly Report"]:
-        await weekly_report(update, context)
-        return
-
-    if text in ["🧠 تحلیل تغذیه", "🧠 Nutrition Analysis"]:
-        await nutrition_analysis(update, context)
-        return
-
-    if text in ["⚖️ گزارش وزن", "⚖️ Weight report"]:
-        await weight_report(update, context)
-        return
-
-    if text in ["⚖️ ثبت وزن", "⚖️ Log weight"]:
-        context.user_data["awaiting_weight"] = True
-        await update.message.reply_text(
-            "Enter your current weight:\n\nExample:\n82.5"
-            if language == "en"
-            else "وزن فعلی‌ات را وارد کن:\n\nمثال:\n82.5"
-        )
-        return
-
-    if text in ["🌐 تغییر زبان", "🌐 Change language"]:
-        context.user_data["changing_language_only"] = True
-        await update.message.reply_text(
-            "Please choose your language:\n\nلطفاً زبان خود را انتخاب کنید:",
-            reply_markup=language_keyboard(),
-        )
-        return
-
-    if text in ["🎯 تغییر هدف", "🎯 Change goal"]:
-        msg = "Use this format:\n/goal 1700 200" if language == "en" else "برای تغییر هدف اینطوری بنویس:\n/goal 1700 200"
-        await update.message.reply_text(msg)
-        return
 
     goal_data = get_goal(user_id)
 
     if not goal_data:
-        msg = "Please use /start first." if language == "en" else "اول /start را بزن."
-        await update.message.reply_text(msg)
+        await update.message.reply_text(
+            "Please use /start first." if language == "en" else "اول /start را بزن."
+        )
         return
 
     try:
         meal_result = calculate_and_save_meal(text, user_id)
 
         if not meal_result["items"]:
-            msg = (
+            await update.message.reply_text(
                 "I could not calculate this food. Please write it more clearly."
                 if language == "en"
-                else "نتونستم این غذا رو محاسبه کنم. لطفاً واضح‌تر بنویس."
+                else "نتونستم این غذا رو محاسبه کنم. لطفاً واضح‌تر بنویس.",
+                reply_markup=main_keyboard(language),
             )
-            await update.message.reply_text(msg, reply_markup=main_keyboard(language))
             return
 
         today_summary = get_today_summary(user_id)
         message = format_meal_response(meal_result, today_summary, language)
-        await update.message.reply_text(message, reply_markup=main_keyboard(language))
+
+        await update.message.reply_text(
+            message,
+            reply_markup=main_keyboard(language),
+        )
 
     except Exception as e:
-        msg = (
+        await update.message.reply_text(
             "Something went wrong. Please write the food more clearly."
             if language == "en"
             else "مشکلی پیش اومد. لطفاً غذا رو واضح‌تر بنویس."
         )
-        await update.message.reply_text(msg)
-        print("ERROR:", e)
+        print("ERROR:", e, flush=True)
 
 
 def main():
@@ -768,13 +1002,29 @@ def main():
     app.add_handler(CommandHandler("weight", weight_command))
     app.add_handler(CommandHandler("weight_history", weight_history_command))
     app.add_handler(CommandHandler("weight_report", weight_report))
-
+    app.add_handler(MessageHandler(filters.PHOTO, handle_barcode_photo))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_food_message))
 
     print("Bot is running...")
     app.run_polling(drop_pending_updates=True)
 
+def cancel_active_requests(context):
+    keys_to_cancel = [
+        "awaiting_weight",
+        "awaiting_barcode_amount",
+        "pending_barcode_product",
+        "awaiting_clear_today_confirm",
+        "history_start",
+        "changing_language_only",
+        "calories_goal",
+    ]
+
+    for key in keys_to_cancel:
+        if key in context.user_data:
+            context.user_data.pop(key, None)
 
 if __name__ == "__main__":
     main()
+
+

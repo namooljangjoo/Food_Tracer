@@ -60,6 +60,16 @@ class WeightLog(Base):
     weight = Column(Float)
     log_date = Column(Date, default=date.today, index=True)
 
+class ProductCache(Base):
+    __tablename__ = "product_cache"
+
+    barcode = Column(String, primary_key=True)
+
+    name = Column(String)
+    brand = Column(String)
+
+    calories_per_100g = Column(Float)
+    protein_per_100g = Column(Float)
 
 engine = create_engine("sqlite:///food.db")
 Base.metadata.create_all(engine)
