@@ -9,9 +9,16 @@ USDA_API_KEY = os.getenv("USDA_API_KEY")
 
 COMMON_FOODS = {
     "egg": {"description": "egg", "calories_per_100g": 143, "protein_per_100g": 12.6},
+    "boiled egg": {"description": "boiled egg", "calories_per_100g": 155, "protein_per_100g": 13},
+    "fried egg": {"description": "fried egg", "calories_per_100g": 196, "protein_per_100g": 13.6},
     "rice": {"description": "white rice cooked", "calories_per_100g": 130, "protein_per_100g": 2.7},
+    "cooked rice": {"description": "cooked rice", "calories_per_100g": 130, "protein_per_100g": 2.7},
+    "dry rice": {"description": "dry rice", "calories_per_100g": 365, "protein_per_100g": 7.1},
     "chicken breast": {"description": "chicken breast cooked", "calories_per_100g": 165, "protein_per_100g": 31},
     "butter": {"description": "butter", "calories_per_100g": 717, "protein_per_100g": 0.9},
+    "olive oil": {"description": "olive oil", "calories_per_100g": 884, "protein_per_100g": 0},
+    "cooking oil": {"description": "cooking oil", "calories_per_100g": 884, "protein_per_100g": 0},
+    "toast bread": {"description": "toast bread", "calories_per_100g": 265, "protein_per_100g": 9},
     "barbari bread": {"description": "barbari bread", "calories_per_100g": 270, "protein_per_100g": 8.5},
     "sangak bread": {"description": "sangak bread", "calories_per_100g": 260, "protein_per_100g": 8.7},
     "lavash bread": {"description": "lavash bread", "calories_per_100g": 275, "protein_per_100g": 9},
@@ -20,8 +27,14 @@ COMMON_FOODS = {
     "jam": {"description": "jam", "calories_per_100g": 250, "protein_per_100g": 0.4},
     "honey": {"description": "honey", "calories_per_100g": 304, "protein_per_100g": 0.3},
     "milk": {"description": "milk", "calories_per_100g": 61, "protein_per_100g": 3.3},
+    "low fat milk": {"description": "low fat milk", "calories_per_100g": 42, "protein_per_100g": 3.4},
+    "whole milk": {"description": "whole milk", "calories_per_100g": 61, "protein_per_100g": 3.2},
+    "milk 3.5% fat": {"description": "milk 3.5% fat", "calories_per_100g": 64, "protein_per_100g": 3.3},
     "banana": {"description": "banana", "calories_per_100g": 89, "protein_per_100g": 1.1},
     "apple": {"description": "apple", "calories_per_100g": 52, "protein_per_100g": 0.3},
+    "feta cheese": {"description": "feta cheese", "calories_per_100g": 264, "protein_per_100g": 14.2},
+    "cream cheese": {"description": "cream cheese", "calories_per_100g": 342, "protein_per_100g": 6.2},
+    "gouda cheese": {"description": "gouda cheese", "calories_per_100g": 356, "protein_per_100g": 25},
     "whey protein": {"description": "whey protein powder", "calories_per_100g": 400, "protein_per_100g": 80},
     "protein powder": {"description": "protein powder", "calories_per_100g": 400, "protein_per_100g": 80},
     "tuna": {"description": "tuna canned", "calories_per_100g": 132, "protein_per_100g": 28},
@@ -54,6 +67,9 @@ def normalize_food_name(food_name):
 
         "protein": "whey protein",
         "whey": "whey protein",
+
+        "olive": "olive oil",
+        "oil": "cooking oil",
     }
 
     return mapping.get(food, food)

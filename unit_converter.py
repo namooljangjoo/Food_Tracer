@@ -53,9 +53,23 @@ def convert_to_grams(food, quantity, unit):
 
     unit_weights = {
         ("egg", "piece"): 50,
+        ("boiled egg", "piece"): 50,
+        ("fried egg", "piece"): 50,
         ("rice", "plate"): 250,
+        ("rice", "cup"): 160,
+        ("cooked rice", "plate"): 250,
+        ("cooked rice", "cup"): 160,
+        ("dry rice", "plate"): 185,
+        ("dry rice", "cup"): 185,
         ("pasta", "plate"): 300,
         ("milk", "glass"): 250,
+        ("milk", "cup"): 240,
+        ("low fat milk", "glass"): 250,
+        ("low fat milk", "cup"): 240,
+        ("whole milk", "glass"): 250,
+        ("whole milk", "cup"): 240,
+        ("milk 3.5% fat", "glass"): 250,
+        ("milk 3.5% fat", "cup"): 240,
         ("water", "glass"): 250,
         ("banana", "piece"): 120,
         ("apple", "piece"): 180,
@@ -74,8 +88,21 @@ def convert_to_grams(food, quantity, unit):
 
         ("honey", "tablespoon"): 21,
         ("honey", "teaspoon"): 7,
+        ("olive oil", "tablespoon"): 13.5,
+        ("olive oil", "teaspoon"): 4.5,
+        ("cooking oil", "tablespoon"): 13.5,
+        ("cooking oil", "teaspoon"): 4.5,
+        ("butter", "tablespoon"): 14,
+        ("butter", "teaspoon"): 5,
         ("peanut butter", "tablespoon"): 16,
         ("peanut butter", "teaspoon"): 5,
+
+        ("feta cheese", "slice"): 28,
+        ("feta cheese", "piece"): 30,
+        ("cream cheese", "slice"): 28,
+        ("cream cheese", "piece"): 30,
+        ("gouda cheese", "slice"): 25,
+        ("gouda cheese", "piece"): 30,
 
         ("whey protein", "scoop"): 30,
         ("protein powder", "scoop"): 30,
@@ -84,7 +111,6 @@ def convert_to_grams(food, quantity, unit):
         ("beans", "can"): 240,
         ("chickpeas", "can"): 240,
 
-        ("rice", "cup"): 160,
         ("oats", "cup"): 80,
         ("flour", "cup"): 120,
     }

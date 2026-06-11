@@ -3,3 +3,6 @@ food.db
 venv/
 __pycache__/
 *.pyc
+*.jpg
+*.png
+test_*.py

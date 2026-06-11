@@ -20,6 +20,10 @@ def food_keyboard(language="fa"):
     if language == "en":
         keyboard = [
             ["➕ Log Food"],
+            ["➕ Custom Food"],
+            ["📸 Food Photo"],
+            ["⭐ Save Favorite"],
+            ["⭐ Favorites"],
             ["📦 Scan Barcode"],
             ["↩️ Undo Last Meal"],
             ["⬅️ Back"],
@@ -27,6 +31,10 @@ def food_keyboard(language="fa"):
     else:
         keyboard = [
             ["➕ ثبت غذا"],
+            ["➕ غذای سفارشی"],
+            ["📸 عکس غذا"],
+            ["⭐ ذخیره محبوب"],
+            ["⭐ غذاهای محبوب"],
             ["📦 اسکن بارکد"],
             ["↩️ حذف آخرین غذا"],
             ["⬅️ بازگشت"],
@@ -39,16 +47,26 @@ def reports_keyboard(language="fa"):
     if language == "en":
         keyboard = [
             ["📅 Today"],
+            ["🎯 Today Progress"],
+            ["🎯 Adaptive Goal"],
             ["📈 Weekly Report"],
+            ["🛒 Shopping List"],
+            ["🍱 Meal Plan"],
             ["🧠 Nutrition Analysis"],
+            ["🧠 My Coach"],
             ["⚖️ Weight Trend"],
             ["⬅️ Back"],
         ]
     else:
         keyboard = [
             ["📅 امروز"],
+            ["🎯 پیشرفت امروز"],
+            ["🎯 پیشنهاد هدف"],
             ["📈 گزارش هفتگی"],
+            ["🛒 لیست خرید"],
+            ["🍱 برنامه غذایی"],
             ["🧠 تحلیل تغذیه"],
+            ["🧠 مربی من"],
             ["⚖️ روند وزن"],
             ["⬅️ بازگشت"],
         ]

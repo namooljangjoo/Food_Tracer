@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from database import SessionLocal, WeightLog
 
 
 def create_weekly_chart(report, user_id):
@@ -44,3 +45,36 @@ def create_weight_chart(weight_history, user_id):
     plt.close()
 
     return output_file
+
+
+def generate_weight_chart(user_id):
+    db = SessionLocal()
+
+    weights = (
+        db.query(WeightLog)
+        .filter(WeightLog.user_id == user_id)
+        .order_by(WeightLog.log_date.asc())
+        .all()
+    )
+
+    db.close()
+
+    if len(weights) < 2:
+        return None
+
+    dates = [w.log_date.strftime("%d/%m") for w in weights]
+    values = [w.weight for w in weights]
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(dates, values, marker="o")
+    plt.title("Weight Progress")
+    plt.ylabel("kg")
+    plt.grid(True)
+
+    chart_path = f"/tmp/weight_{user_id}.png"
+
+    plt.tight_layout()
+    plt.savefig(chart_path)
+    plt.close()
+
+    return chart_path

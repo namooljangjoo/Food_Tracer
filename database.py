@@ -1,5 +1,5 @@
 from datetime import date
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -71,7 +71,44 @@ class ProductCache(Base):
     calories_per_100g = Column(Float)
     protein_per_100g = Column(Float)
 
+
+class UserStats(Base):
+    __tablename__ = "user_stats"
+
+    user_id = Column(Integer, primary_key=True)
+    current_streak = Column(Integer, default=0)
+    best_streak = Column(Integer, default=0)
+    last_log_date = Column(Date)
+
+
+class FavoriteFood(Base):
+    __tablename__ = "favorite_foods"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    title = Column(String, nullable=False)
+    food_text = Column(Text, nullable=False)
+
+
+class UserFoodPreference(Base):
+    __tablename__ = "user_food_preferences"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    original_food = Column(String, nullable=False)
+    preferred_food = Column(String, nullable=False)
+    preferred_unit = Column(String, nullable=False)
+    usage_count = Column(Integer, default=1)
+
+
+class CoachUsage(Base):
+    __tablename__ = "coach_usage"
+
+    user_id = Column(Integer, primary_key=True)
+    last_used_at = Column(DateTime)
+
+
 engine = create_engine("sqlite:///food.db")
-Base.metadata.create_all(engine)
+Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(bind=engine)
