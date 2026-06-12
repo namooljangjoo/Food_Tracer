@@ -4,3 +4,7 @@ SQLAlchemy==2.0.50
 openai
 requests
 matplotlib
+reportlab
+fastapi
+uvicorn
+jinja2

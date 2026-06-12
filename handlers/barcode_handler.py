@@ -4,6 +4,7 @@ import uuid
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from barcode_service import read_barcode, get_product_by_barcode
 from daily_summary import get_today_summary
 from database import FoodLog, SessionLocal
@@ -131,6 +132,8 @@ async def save_pending_barcode_amount(update: Update, context: ContextTypes.DEFA
         db.add(food_log)
         db.commit()
         db.close()
+        track_event(user_id, "food_logged")
+        track_event(user_id, "barcode_scan")
 
         context.user_data["awaiting_barcode_amount"] = False
         context.user_data["pending_barcode_product"] = None

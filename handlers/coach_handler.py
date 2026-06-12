@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from ai_coach_service import generate_ai_coach_report
 from coach_data_service import build_coach_data, get_coach_cooldown, mark_coach_used
 from menu_service import reports_keyboard
@@ -40,6 +41,7 @@ async def ai_coach_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         mark_coach_used(user_id)
+        track_event(user_id, "ai_coach")
 
         await update.message.reply_text(
             report,
@@ -58,4 +60,3 @@ async def ai_coach_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     return
-

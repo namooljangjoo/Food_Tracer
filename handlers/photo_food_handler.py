@@ -4,6 +4,7 @@ import uuid
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from daily_summary import get_today_summary
 from database import FoodLog, SessionLocal
 from streak_service import update_streak
@@ -129,7 +130,21 @@ async def handle_food_photo_confirm(update: Update, context: ContextTypes.DEFAUL
             )
 
         db.commit()
+
+        if language == "fa":
+            food_text = ", ".join(
+                [f"{item['grams']} گرم {item['food']}" for item in result["items"]]
+            )
+        else:
+            food_text = ", ".join(
+                [f"{item['grams']}g {item['food']}" for item in result["items"]]
+            )
+
+        context.user_data["last_food_text"] = food_text
+
         db.close()
+        track_event(user_id, "food_logged")
+        track_event(user_id, "food_photo")
 
         context.user_data["awaiting_food_photo_confirm"] = False
         context.user_data.pop("pending_food_photo_result", None)
@@ -176,4 +191,3 @@ async def handle_food_photo_confirm(update: Update, context: ContextTypes.DEFAUL
         else "Please answer YES or NO."
     )
     return
-

@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from meal_plan_service import generate_weekly_meal_plan
 from menu_service import reports_keyboard
 from settings_service import get_language
@@ -27,6 +28,8 @@ async def weekly_meal_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reports_keyboard(language),
             )
             return
+
+        track_event(user_id, "meal_plan")
 
         await update.message.reply_text(
             plan,

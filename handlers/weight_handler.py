@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from chart_service import generate_weight_chart
 from menu_service import main_keyboard
 from settings_service import get_language
@@ -17,6 +18,7 @@ async def weight_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             raise ValueError()
 
         save_weight(user_id, weight)
+        track_event(user_id, "weight_logged")
         text = f"✅ Weight saved: {weight} kg" if language == "en" else f"✅ وزن ثبت شد: {weight} kg"
         await update.message.reply_text(text, reply_markup=main_keyboard(language))
 

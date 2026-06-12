@@ -1,8 +1,28 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from analytics_service import track_event
 from favorites_service import save_favorite, get_favorites
 from settings_service import get_language
+
+
+def normalize_favorite_number(text):
+    text = text.strip()
+
+    persian_digits = "۰۱۲۳۴۵۶۷۸۹"
+    english_digits = "0123456789"
+
+    for p, e in zip(persian_digits, english_digits):
+        text = text.replace(p, e)
+
+    text = text.replace("⭐", "")
+    text = text.replace("*", "")
+    text = text.strip()
+
+    if text.isdigit():
+        return int(text)
+
+    return None
 
 
 async def handle_favorite_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -16,6 +36,7 @@ async def handle_favorite_name(update: Update, context: ContextTypes.DEFAULT_TYP
         title,
         context.user_data["last_food_text"],
     )
+    track_event(user_id, "favorite_saved")
 
     context.user_data["awaiting_favorite_name"] = False
 
@@ -74,4 +95,3 @@ async def list_favorites(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(message)
     return
-

@@ -11,9 +11,11 @@ from telegram.ext import (
 )
 
 from handlers.callback_handler import handle_callback
+from handlers.admin_handler import admin_command
 from handlers.food_handler import handle_food_message, undo
 from handlers.history_handler import history
 from handlers.meal_plan_handler import weekly_meal_plan
+from handlers.pdf_handler import export_pdf
 from handlers.photo_food_handler import handle_food_photo
 from handlers.report_handler import (
     adaptive_goal,
@@ -71,10 +73,12 @@ def register_handlers(app):
     app.add_handler(CommandHandler("progress", today_progress))
     app.add_handler(CommandHandler("adaptive_goal", adaptive_goal))
     app.add_handler(CommandHandler("meal_plan", weekly_meal_plan))
+    app.add_handler(CommandHandler("export_pdf", export_pdf))
     app.add_handler(CommandHandler("analyze", nutrition_analysis))
     app.add_handler(CommandHandler("weight", weight_command))
     app.add_handler(CommandHandler("weight_history", weight_history_command))
     app.add_handler(CommandHandler("weight_report", weight_report))
+    app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(MessageHandler(filters.PHOTO, handle_food_photo))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_food_message))

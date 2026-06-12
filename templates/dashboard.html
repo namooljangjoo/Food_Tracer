@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FoodTracer Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #667085;
+      --border: #d0d5dd;
+      --accent: #0f766e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>FoodTracer Dashboard</h1>
+      <div class="subtitle">Platform usage statistics</div>
+    </header>
+
+    <section class="grid" aria-label="Admin analytics">
+      <article class="metric">
+        <div class="label">Total Users</div>
+        <div class="value">{{ report.total_users }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Active Today</div>
+        <div class="value">{{ report.active_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Foods Logged Today</div>
+        <div class="value">{{ report.foods_logged_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Barcode Scans Today</div>
+        <div class="value">{{ report.barcode_scans_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Food Photos Today</div>
+        <div class="value">{{ report.food_photos_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">AI Coach Requests Today</div>
+        <div class="value">{{ report.ai_coach_requests_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Meal Plans Today</div>
+        <div class="value">{{ report.meal_plans_today }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Favorites Saved</div>
+        <div class="value">{{ report.favorites_saved }}</div>
+      </article>
+      <article class="metric">
+        <div class="label">Weight Entries Today</div>
+        <div class="value">{{ report.weights_logged_today }}</div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

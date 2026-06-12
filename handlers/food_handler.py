@@ -5,6 +5,7 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ConversationHandler, ContextTypes
 
 from adaptive_goal_service import apply_adaptive_goal
+from analytics_service import track_event
 from ai_coach_service import generate_ai_coach_report
 from barcode_service import get_product_by_barcode, read_barcode
 from calendar_service import build_history_menu
@@ -33,10 +34,16 @@ from handlers.custom_food_handler import (
     handle_custom_food_ingredients,
     handle_custom_food_name,
 )
-from handlers.favorite_handler import handle_favorite_name, list_favorites, start_save_favorite
+from handlers.favorite_handler import (
+    handle_favorite_name,
+    list_favorites,
+    normalize_favorite_number,
+    start_save_favorite,
+)
 from handlers.photo_food_handler import handle_food_photo_confirm
 from handlers.history_handler import history
 from handlers.meal_plan_handler import weekly_meal_plan
+from handlers.pdf_handler import export_pdf
 from handlers.report_handler import today, weekly_report, nutrition_analysis, today_foods, clear_today_request, today_progress, adaptive_goal
 from handlers.start_handler import language_keyboard
 from handlers.weight_handler import weight_report
@@ -146,6 +153,10 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text in ["📈 گزارش هفتگی", "📈 Weekly Report"]:
         await weekly_report(update, context)
+        return
+
+    if text in ["📄 خروجی PDF", "📄 Export PDF"]:
+        await export_pdf(update, context)
         return
 
     if text in ["🛒 لیست خرید", "🛒 Shopping List"]:
@@ -317,6 +328,7 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 raise ValueError()
 
             save_weight(user_id, weight)
+            track_event(user_id, "weight_logged")
             context.user_data["awaiting_weight"] = False
 
             await update.message.reply_text(
@@ -439,6 +451,8 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
 
+        track_event(user_id, "food_logged")
+
         if original_text:
             context.user_data["last_food_text"] = original_text
 
@@ -469,18 +483,12 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await handle_food_photo_confirm(update, context)
         return
 
-    if text.startswith("⭐ "):
-        try:
-            favorite_id = int(text.replace("⭐ ", ""))
+    favorite_id = normalize_favorite_number(text)
 
-            favorite = get_favorite_by_id(favorite_id)
+    if favorite_id:
+        favorite = get_favorite_by_id(favorite_id)
 
-            if not favorite or favorite.user_id != user_id:
-                raise ValueError()
-
-            text = favorite.food_text
-
-        except Exception:
+        if not favorite or favorite.user_id != user_id:
             await update.message.reply_text(
                 "محبوب پیدا نشد."
                 if language == "fa"
@@ -488,6 +496,8 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 "Favorite not found."
             )
             return
+
+        text = favorite.food_text
 
     try:
         parsed_foods = parse_food(text)
@@ -532,6 +542,8 @@ async def handle_food_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=main_keyboard(language),
             )
             return
+
+        track_event(user_id, "food_logged")
 
         context.user_data["last_food_text"] = text
 
